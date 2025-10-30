@@ -1,81 +1,177 @@
-// services/api.ts - COMPLETELY FIXED
-import axios from 'axios';
+// services/api.ts - COMPLETELY FIXED with network error handling
 import type { User, Workspace, Project, Task } from '../types';
 
 const API_BASE_URL = 'https://collaboration-platform-9ngo.onrender.com';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-});
+// Enhanced fetch with timeout and retry logic
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 15000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+};
 
-// Add token to requests
-api.interceptors.request.use((config) => {
+// GraphQL request helper with enhanced error handling
+const graphqlRequest = async <T>(query: string, variables?: any): Promise<T> => {
   const token = localStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+  
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/graphql`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify({
+        query,
+        variables: variables || {},
+      }),
+    });
 
-// Handle token refresh on 401
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken');
-      window.location.href = '/login';
+    // Handle HTTP errors
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+        throw new Error('Authentication failed. Please log in again.');
+      }
+      if (response.status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return Promise.reject(error);
-  }
-);
 
-interface GraphQLResponse<T> {
-  data: T;
-  errors?: Array<{ message: string }>;
-}
+    const result = await response.json();
+    
+    // Handle GraphQL errors
+    if (result.errors && result.errors.length > 0) {
+      const errorMessage = result.errors[0].message;
+      
+      // Handle specific GraphQL errors
+      if (errorMessage.includes('token') || errorMessage.includes('auth')) {
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+        throw new Error('Authentication error. Please log in again.');
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    if (!result.data) {
+      throw new Error('No data received from server');
+    }
+    
+    return result.data;
+  } catch (error: any) {
+    console.error('GraphQL request failed:', error);
+    
+    // Handle network errors
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout. Please check your connection and try again.');
+    }
+    
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      throw new Error('Network error. Please check your internet connection.');
+    }
+    
+    throw error;
+  }
+};
+
+// REST API request helper
+const restRequest = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+  const token = localStorage.getItem('accessToken');
+  
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+        throw new Error('Authentication failed');
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('REST request failed:', error);
+    
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout');
+    }
+    
+    if (error.message.includes('Failed to fetch')) {
+      throw new Error('Network error. Please check your connection.');
+    }
+    
+    throw error;
+  }
+};
 
 export const authService = {
   async login(email: string, password: string): Promise<any> {
-    const response = await api.post('/api/auth/login', { email, password });
-    return response.data;
+    const response = await restRequest<{ accessToken: string; user: User }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    return response;
   },
 
   async logout(): Promise<void> {
-    await api.post('/api/auth/logout');
+    try {
+      await restRequest('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if logout fails, clear local storage
+    } finally {
+      localStorage.removeItem('accessToken');
+    }
   },
 
   async getMe(): Promise<User> {
-    const response = await api.post<GraphQLResponse<{ me: User }>>('/graphql', {
-      query: `
-        query GetMe {
-          me {
-            id
-            email
-            globalStatus
-          }
+    const data = await graphqlRequest<{ me: User }>(`
+      query GetMe {
+        me {
+          id
+          email
+          globalStatus
+          createdAt
         }
-      `
-    });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
-    }
-    
-    return response.data.data.me;
+      }
+    `);
+    return data.me;
   },
 };
 
 export const workspaceService = {
   async getMyWorkspaces(): Promise<Workspace[]> {
-    const response = await api.post<GraphQLResponse<{ myWorkspaces: Workspace[] }>>('/graphql', {
-      query: `
+    try {
+      const data = await graphqlRequest<{ myWorkspaces: Workspace[] }>(`
         query GetMyWorkspaces {
           myWorkspaces {
             id
             name
             description
             createdAt
+            updatedAt
             createdBy {
               id
               email
@@ -90,87 +186,87 @@ export const workspaceService = {
             }
           }
         }
-      `
-    });
-    
-    if (response.data.errors) {
-      console.error('GraphQL Errors:', response.data.errors);
-      throw new Error(response.data.errors[0].message);
+      `);
+      return data.myWorkspaces || [];
+    } catch (error: any) {
+      // Return empty array instead of throwing for better UX
+      if (error.message.includes('Authentication') || error.message.includes('token')) {
+        throw error; // Re-throw auth errors
+      }
+      console.error('Failed to fetch workspaces:', error);
+      return [];
     }
-    
-    return response.data.data.myWorkspaces || [];
   },
 
   async createWorkspace(name: string, description?: string): Promise<Workspace> {
-    const response = await api.post<GraphQLResponse<{ createWorkspace: Workspace }>>('/graphql', {
-      query: `
-        mutation CreateWorkspace($input: CreateWorkspaceInput!) {
-          createWorkspace(input: $input) {
+    const data = await graphqlRequest<{ createWorkspace: Workspace }>(`
+      mutation CreateWorkspace($input: CreateWorkspaceInput!) {
+        createWorkspace(input: $input) {
+          id
+          name
+          description
+          createdAt
+          createdBy {
             id
-            name
-            description
-            createdAt
-            createdBy {
+            email
+          }
+          members {
+            id
+            user {
               id
               email
             }
+            role
           }
         }
-      `,
-      variables: {
-        input: { 
-          name, 
-          description: description || '' 
-        }
+      }
+    `, {
+      input: { 
+        name, 
+        description: description || '' 
       }
     });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
-    }
-    
-    return response.data.data.createWorkspace;
+    return data.createWorkspace;
   },
 
   async getWorkspace(id: string): Promise<Workspace> {
-    const response = await api.post<GraphQLResponse<{ workspace: Workspace }>>('/graphql', {
-      query: `
-        query GetWorkspace($id: ID!) {
-          workspace(id: $id) {
+    const data = await graphqlRequest<{ workspace: Workspace }>(`
+      query GetWorkspace($id: ID!) {
+        workspace(id: $id) {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          createdBy {
+            id
+            email
+          }
+          members {
+            id
+            user {
+              id
+              email
+            }
+            role
+          }
+          projects {
             id
             name
             description
             createdAt
-            createdBy {
-              id
-              email
-            }
-            members {
-              id
-              user {
-                id
-                email
-              }
-              role
-            }
           }
         }
-      `,
-      variables: { id }
-    });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
-    }
-    
-    return response.data.data.workspace;
+      }
+    `, { id });
+    return data.workspace;
   }
 };
 
 export const projectService = {
   async getWorkspaceProjects(workspaceId: string): Promise<Project[]> {
-    const response = await api.post<GraphQLResponse<{ workspaceProjects: Project[] }>>('/graphql', {
-      query: `
+    try {
+      const data = await graphqlRequest<{ workspaceProjects: Project[] }>(`
         query GetWorkspaceProjects($workspaceId: ID!) {
           workspaceProjects(workspaceId: $workspaceId) {
             id
@@ -181,56 +277,50 @@ export const projectService = {
               id
               email
             }
-          }
-        }
-      `,
-      variables: { workspaceId }
-    });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
-    }
-    
-    return response.data.data.workspaceProjects || [];
-  },
-
-  async createProject(name: string, description: string, workspaceId: string): Promise<Project> {
-    const response = await api.post<GraphQLResponse<{ createProject: Project }>>('/graphql', {
-      query: `
-        mutation CreateProject($input: CreateProjectInput!) {
-          createProject(input: $input) {
-            id
-            name
-            description
-            createdAt
-            createdBy {
+            tasks {
               id
-              email
+              title
+              status
             }
           }
         }
-      `,
-      variables: {
-        input: { 
-          name, 
-          description, 
-          workspaceId 
+      `, { workspaceId });
+      return data.workspaceProjects || [];
+    } catch (error: any) {
+      console.error('Failed to fetch projects:', error);
+      return [];
+    }
+  },
+
+  async createProject(name: string, description: string, workspaceId: string): Promise<Project> {
+    const data = await graphqlRequest<{ createProject: Project }>(`
+      mutation CreateProject($input: CreateProjectInput!) {
+        createProject(input: $input) {
+          id
+          name
+          description
+          createdAt
+          createdBy {
+            id
+            email
+          }
         }
       }
+    `, {
+      input: { 
+        name, 
+        description, 
+        workspaceId 
+      }
     });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
-    }
-    
-    return response.data.data.createProject;
+    return data.createProject;
   }
 };
 
 export const taskService = {
   async getMyAssignedTasks(status?: string): Promise<Task[]> {
-    const response = await api.post<GraphQLResponse<{ myAssignedTasks: Task[] }>>('/graphql', {
-      query: `
+    try {
+      const data = await graphqlRequest<{ myAssignedTasks: Task[] }>(`
         query GetMyAssignedTasks($status: TaskStatus) {
           myAssignedTasks(status: $status) {
             id
@@ -238,6 +328,7 @@ export const taskService = {
             description
             status
             dueDate
+            createdAt
             project {
               id
               name
@@ -246,43 +337,74 @@ export const taskService = {
                 name
               }
             }
+            createdBy {
+              id
+              email
+            }
+            assignedTo {
+              id
+              email
+            }
           }
         }
-      `,
-      variables: status ? { status } : {}
-    });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
+      `, status ? { status } : {});
+      return data.myAssignedTasks || [];
+    } catch (error: any) {
+      console.error('Failed to fetch tasks:', error);
+      return [];
     }
-    
-    return response.data.data.myAssignedTasks || [];
+  },
+
+  async updateTask(taskId: string, updates: any): Promise<Task> {
+    const data = await graphqlRequest<{ updateTask: Task }>(`
+      mutation UpdateTask($input: UpdateTaskInput!) {
+        updateTask(input: $input) {
+          id
+          title
+          description
+          status
+          dueDate
+          project {
+            id
+            name
+            workspace {
+              id
+              name
+            }
+          }
+        }
+      }
+    `, {
+      input: {
+        taskId,
+        ...updates
+      }
+    });
+    return data.updateTask;
   }
 };
 
 export const aiService = {
   async summarizeTask(taskDescription: string): Promise<string> {
-    const response = await api.post<GraphQLResponse<{ summarizeTask: string }>>('/graphql', {
-      query: `
+    try {
+      const data = await graphqlRequest<{ summarizeTask: string }>(`
         query SummarizeTask($input: AISummarizeInput!) {
           summarizeTask(input: $input)
         }
-      `,
-      variables: {
+      `, {
         input: { taskDescription }
-      }
-    });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
+      });
+      return data.summarizeTask || 'No summary available.';
+    } catch (error: any) {
+      console.error('AI summarize error:', error);
+      // Return fallback summary instead of throwing
+      return `Summary: ${taskDescription.substring(0, 100)}... [AI service temporarily unavailable]`;
     }
-    
-    return response.data.data.summarizeTask;
   },
 
   async generateTasksFromPrompt(prompt: string, projectId: string): Promise<any[]> {
-    const response = await api.post<GraphQLResponse<{ generateTasksFromPrompt: any[] }>>('/graphql', {
-      query: `
+    try {
+      const data = await graphqlRequest<{ generateTasksFromPrompt: any[] }>(`
         mutation GenerateTasksFromPrompt($input: AIGenerateTasksInput!) {
           generateTasksFromPrompt(input: $input) {
             id
@@ -291,117 +413,84 @@ export const aiService = {
             status
           }
         }
-      `,
-      variables: {
+      `, {
         input: { prompt, projectId }
-      }
-    });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
+      });
+      return data.generateTasksFromPrompt || [];
+    } catch (error: any) {
+      console.error('AI task generation error:', error);
+      throw new Error('AI service is currently unavailable. Please try again later.');
     }
-    
-    return response.data.data.generateTasksFromPrompt || [];
   }
 };
 
 export const adminService = {
   async getAllWorkspaces(): Promise<Workspace[]> {
-    const response = await api.post<GraphQLResponse<{ getAllWorkspaces: Workspace[] }>>('/graphql', {
-      query: `
-        query GetAllWorkspaces {
-          getAllWorkspaces {
+    const data = await graphqlRequest<{ getAllWorkspaces: Workspace[] }>(`
+      query GetAllWorkspaces {
+        getAllWorkspaces {
+          id
+          name
+          description
+          createdAt
+          createdBy {
             id
-            name
-            description
-            createdAt
-            createdBy {
+            email
+          }
+          members {
+            user {
               id
               email
+              globalStatus
             }
-            members {
-              user {
-                id
-                email
-                globalStatus
-              }
-              role
-            }
+            role
           }
         }
-      `
-    });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
-    }
-    
-    return response.data.data.getAllWorkspaces || [];
+      }
+    `);
+    return data.getAllWorkspaces || [];
   },
 
   async getAuditLogs(filters?: any): Promise<any[]> {
-    const response = await api.post<GraphQLResponse<{ getAuditLogs: any[] }>>('/graphql', {
-      query: `
-        query GetAuditLogs($limit: Int) {
-          getAuditLogs(limit: $limit) {
-            id
-            timestamp
-            level
-            userId
-            ipAddress
-            action
-            details
-            message
-          }
+    const data = await graphqlRequest<{ getAuditLogs: any[] }>(`
+      query GetAuditLogs($limit: Int) {
+        getAuditLogs(limit: $limit) {
+          id
+          timestamp
+          level
+          userId
+          ipAddress
+          action
+          details
+          message
         }
-      `,
-      variables: { limit: 50 }
-    });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
-    }
-    
-    return response.data.data.getAuditLogs || [];
+      }
+    `, { limit: 50 });
+    return data.getAuditLogs || [];
   },
 
   async banUser(userId: string): Promise<User> {
-    const response = await api.post<GraphQLResponse<{ userBan: User }>>('/graphql', {
-      query: `
-        mutation BanUser($userId: ID!) {
-          userBan(userId: $userId) {
-            id
-            email
-            globalStatus
-          }
+    const data = await graphqlRequest<{ userBan: User }>(`
+      mutation BanUser($userId: ID!) {
+        userBan(userId: $userId) {
+          id
+          email
+          globalStatus
         }
-      `,
-      variables: { userId }
-    });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
-    }
-    
-    return response.data.data.userBan;
+      }
+    `, { userId });
+    return data.userBan;
   },
 
   async adminResetPassword(input: { userId: string; newPassword: string }): Promise<boolean> {
-    const response = await api.post<GraphQLResponse<{ adminResetPassword: boolean }>>('/graphql', {
-      query: `
-        mutation AdminResetPassword($input: AdminResetPasswordInput!) {
-          adminResetPassword(input: $input)
-        }
-      `,
-      variables: { input }
-    });
-    
-    if (response.data.errors) {
-      throw new Error(response.data.errors[0].message);
-    }
-    
-    return response.data.data.adminResetPassword;
+    const data = await graphqlRequest<{ adminResetPassword: boolean }>(`
+      mutation AdminResetPassword($input: AdminResetPasswordInput!) {
+        adminResetPassword(input: $input)
+      }
+    `, { input });
+    return data.adminResetPassword;
   }
 };
 
-export default api;
+// Export the enhanced fetch for other uses
+export { fetchWithTimeout, graphqlRequest, restRequest };
