@@ -30,8 +30,6 @@ api.interceptors.response.use(
   }
 );
 
-
-
 interface LoginResponse {
   user: User;
   accessToken: string;
@@ -268,6 +266,42 @@ export const taskService = {
   }
 };
 
+export const aiService = {
+  async summarizeTask(taskDescription: string): Promise<string> {
+    const response = await api.post<GraphQLResponse<{ summarizeTask: string }>>('/graphql', {
+      query: `
+        query SummarizeTask($input: AISummarizeInput!) {
+          summarizeTask(input: $input)
+        }
+      `,
+      variables: {
+        input: { taskDescription }
+      }
+    });
+    return response.data.data.summarizeTask;
+  },
+
+  async generateTasksFromPrompt(prompt: string, projectId: string): Promise<any[]> {
+    const response = await api.post<GraphQLResponse<{ generateTasksFromPrompt: any[] }>>('/graphql', {
+      query: `
+        mutation GenerateTasksFromPrompt($input: AIGenerateTasksInput!) {
+          generateTasksFromPrompt(input: $input) {
+            id
+            title
+            description
+            status
+          }
+        }
+      `,
+      variables: {
+        input: { prompt, projectId }
+      }
+    });
+    return response.data.data.generateTasksFromPrompt;
+  }
+};
+
+// SINGLE adminService declaration with all methods
 export const adminService = {
   async getAllWorkspaces(): Promise<Workspace[]> {
     const response = await api.post<GraphQLResponse<{ getAllWorkspaces: Workspace[] }>>('/graphql', {
@@ -279,11 +313,14 @@ export const adminService = {
             description
             createdAt
             createdBy {
+              id
               email
             }
             members {
               user {
+                id
                 email
+                globalStatus
               }
               role
             }
@@ -308,6 +345,18 @@ export const adminService = {
       variables: { userId }
     });
     return response.data.data.userBan;
+  },
+
+  async adminResetPassword(input: { userId: string; newPassword: string }): Promise<boolean> {
+    const response = await api.post<GraphQLResponse<{ adminResetPassword: boolean }>>('/graphql', {
+      query: `
+        mutation AdminResetPassword($input: AdminResetPasswordInput!) {
+          adminResetPassword(input: $input)
+        }
+      `,
+      variables: { input }
+    });
+    return response.data.data.adminResetPassword;
   }
 };
 

@@ -18,11 +18,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: '📊' },
-    { name: 'Workspaces', href: '/workspaces', icon: '🏢' },
-    { name: 'Projects', href: '/projects', icon: '📁' },
-    { name: 'My Tasks', href: '/tasks', icon: '✅' },
-  ];
+  { name: 'Dashboard', href: '/', icon: '📊' },
+  { name: 'Workspaces', href: '/workspaces', icon: '🏢' },
+  { name: 'Projects', href: '/projects', icon: '📁' },
+  { name: 'My Tasks', href: '/tasks', icon: '✅' },
+];
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -61,16 +61,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Admin Section */}
             {user?.globalStatus === 'ADMIN' && (
-              <div className="pt-4 mt-4 border-t border-gray-200">
+            <div className="pt-4 mt-4 border-t border-gray-200">
                 <p className="px-4 text-xs font-semibold text-gray-500 uppercase">Admin</p>
                 <Link
-                  to="/admin"
-                  className="flex items-center px-4 py-3 mt-2 text-sm font-medium text-red-700 rounded-lg bg-red-50 hover:bg-red-100"
+                to="/admin"
+                className="flex items-center px-4 py-3 mt-2 text-sm font-medium text-red-700 rounded-lg bg-red-50 hover:bg-red-100"
                 >
-                  <span className="mr-3 text-lg">👑</span>
-                  Admin Panel
+                <span className="mr-3 text-lg">👑</span>
+                Admin Panel
                 </Link>
-              </div>
+            </div>
             )}
           </nav>
 

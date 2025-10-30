@@ -127,29 +127,30 @@ const Dashboard: React.FC = () => {
           </Link>
         </div>
         <div className="space-y-3">
-          {tasks?.slice(0, 5).map((task: Task) => (
-            <div key={task.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${
-                  task.status === 'DONE' ? 'bg-green-500' :
-                  task.status === 'IN_PROGRESS' ? 'bg-yellow-500' : 'bg-gray-300'
-                }`}></div>
-                <div>
-                  <h4 className="font-medium text-gray-900">{task.title}</h4>
-                  <p className="text-sm text-gray-500">
-                    {task.project?.workspace?.name} • {task.project?.name}
-                  </p>
-                </div>
-              </div>
-              <span className={`px-2 py-1 text-xs rounded-full ${
-                task.status === 'DONE' ? 'bg-green-100 text-green-800' :
-                task.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {task.status.replace('_', ' ')}
-              </span>
+        {tasks?.slice(0, 5).map((task: Task) => (
+        <div key={task.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+            <div className="flex items-center space-x-3">
+            <div className={`w-3 h-3 rounded-full ${
+                task.status === 'DONE' ? 'bg-green-500' :
+                task.status === 'IN_PROGRESS' ? 'bg-yellow-500' : 'bg-gray-300'
+            }`}></div>
+            <div>
+                <h4 className="font-medium text-gray-900">{task.title}</h4>
+                <p className="text-sm text-gray-500">
+                {/* Use workspaceId instead of workspace object if available */}
+                {task.project?.workspaceId ? `Workspace: ${task.project.workspaceId}` : 'No workspace'}
+                </p>
             </div>
-          ))}
+            </div>
+            <span className={`px-2 py-1 text-xs rounded-full ${
+            task.status === 'DONE' ? 'bg-green-100 text-green-800' :
+            task.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' :
+            'bg-gray-100 text-gray-800'
+            }`}>
+            {task.status.replace('_', ' ')}
+            </span>
+        </div>
+        ))}
           {(!tasks || tasks.length === 0) && (
             <p className="text-center text-gray-500 py-4">No tasks assigned</p>
           )}

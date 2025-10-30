@@ -7,9 +7,11 @@ import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Workspaces from './pages/Workspaces';
+import CreateWorkspace from './pages/CreateWorkspace';
 import WorkspaceDetail from './pages/WorkspaceDetail';
 import Projects from './pages/Projects';
 import Tasks from './pages/Tasks';
+import AdminPanel from './pages/AdminPanel';
 
 // Components
 import Layout from './components/Layout';
@@ -26,7 +28,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode; admin?: boolean }> = ({ children, admin = false }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
@@ -39,6 +41,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (admin && user.globalStatus !== 'ADMIN') {
+    return <Navigate to="/" replace />;
   }
   
   return <>{children}</>;
@@ -67,6 +73,13 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
+              <Route path="/workspaces/create" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <CreateWorkspace />
+                  </Layout>
+                </ProtectedRoute>
+              } />
               <Route path="/workspaces/:id" element={
                 <ProtectedRoute>
                   <Layout>
@@ -85,6 +98,13 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Tasks />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/admin" element={
+                <ProtectedRoute admin>
+                  <Layout>
+                    <AdminPanel />
                   </Layout>
                 </ProtectedRoute>
               } />
