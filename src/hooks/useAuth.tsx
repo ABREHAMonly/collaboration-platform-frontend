@@ -1,3 +1,5 @@
+//hooks\useAuth.tsx
+// hooks/useAuth.tsx - FIXED
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authService } from '../services/api';
 import type { User } from '../types';
@@ -27,6 +29,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(userData);
       }
     } catch (error) {
+      console.error('Auth check failed:', error);
       localStorage.removeItem('accessToken');
     } finally {
       setLoading(false);
@@ -34,17 +37,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const login = async (email: string, password: string) => {
-    const { user: userData, accessToken } = await authService.login(email, password);
-    localStorage.setItem('accessToken', accessToken);
-    setUser(userData);
+    try {
+      const response = await authService.login(email, password);
+      localStorage.setItem('accessToken', response.accessToken);
+      setUser(response.user);
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    }
   };
 
-  const logout = () => {
-    localStorage.removeItem('accessToken');
-    setUser(null);
-    authService.logout().catch(() => {
-      // Ignore logout errors
-    });
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('accessToken');
+      setUser(null);
+    }
   };
 
   return (

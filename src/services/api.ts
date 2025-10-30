@@ -1,11 +1,14 @@
+//services\api.ts
+// services/api.ts - FIXED
 import axios from 'axios';
 import type { User, Workspace, Project, Task } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://collaboration-platform-9ngo.onrender.com';
+// Use Render URL directly since CORS is configured
+const API_BASE_URL = 'https://collaboration-platform-9ngo.onrender.com';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
+  withCredentials: true, // Important for cookies
 });
 
 // Add token to requests
@@ -29,6 +32,8 @@ api.interceptors.response.use(
   }
 );
 
+
+
 interface LoginResponse {
   user: User;
   accessToken: string;
@@ -41,8 +46,8 @@ interface GraphQLResponse<T> {
 }
 
 export const authService = {
-  async login(email: string, password: string): Promise<LoginResponse> {
-    const response = await api.post<LoginResponse>('/api/auth/login', { email, password });
+  async login(email: string, password: string): Promise<any> {
+    const response = await api.post('/api/auth/login', { email, password });
     return response.data;
   },
 

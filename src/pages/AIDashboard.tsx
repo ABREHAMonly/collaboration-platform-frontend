@@ -1,3 +1,4 @@
+//pages\AIDashboard.tsx
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { aiService, projectService, workspaceService } from '../services/api';

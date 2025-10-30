@@ -1,3 +1,4 @@
+//pages\CreateWorkspace.tsx
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { workspaceService } from '../services/api';

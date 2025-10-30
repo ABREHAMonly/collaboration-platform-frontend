@@ -1,3 +1,4 @@
+//components\AIService.tsx
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { aiService } from '../services/api';

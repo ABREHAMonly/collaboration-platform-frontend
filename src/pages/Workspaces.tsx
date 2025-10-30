@@ -1,45 +1,22 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+// pages/Workspaces.tsx - IMPROVED
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { workspaceService } from '../services/api';
 import toast from 'react-hot-toast';
-import type { Workspace } from '../types';
 
 const Workspaces: React.FC = () => {
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState('');
-  const [workspaceDescription, setWorkspaceDescription] = useState('');
-  const queryClient = useQueryClient();
-
-  const { data: workspaces, isLoading, error } = useQuery<Workspace[]>({
+  const { 
+    data: workspaces, 
+    isLoading, 
+    error,
+    refetch 
+  } = useQuery({
     queryKey: ['workspaces'],
     queryFn: workspaceService.getMyWorkspaces,
-    retry: 1,
+    retry: 2,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
-
-  const createMutation = useMutation({
-    mutationFn: () => workspaceService.createWorkspace(workspaceName, workspaceDescription),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
-      setShowCreateModal(false);
-      setWorkspaceName('');
-      setWorkspaceDescription('');
-      toast.success('Workspace created successfully!');
-    },
-    onError: (error: any) => {
-      const errorMessage = error.response?.data?.errors?.[0]?.message || error.response?.data?.message || 'Failed to create workspace';
-      toast.error(errorMessage);
-    },
-  });
-
-  const handleCreateWorkspace = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!workspaceName.trim()) {
-      toast.error('Workspace name is required');
-      return;
-    }
-    createMutation.mutate();
-  };
 
   if (isLoading) {
     return (
@@ -53,8 +30,18 @@ const Workspaces: React.FC = () => {
     return (
       <div className="text-center py-12">
         <div className="text-6xl mb-4">😵</div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load workspaces</h3>
-        <p className="text-gray-500">Please try refreshing the page</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          Failed to load workspaces
+        </h3>
+        <p className="text-gray-500 mb-4">
+          {error instanceof Error ? error.message : 'Please try refreshing the page'}
+        </p>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
