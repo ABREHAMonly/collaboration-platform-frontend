@@ -1,4 +1,3 @@
-// App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -53,84 +52,91 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; admin?: boolean }> =
   return <>{children}</>;
 };
 
-function App() {
+// New component that uses useAuth after AuthProvider
+const AppContent: React.FC = () => {
   const { user } = useAuth();
 
   return (
+    <Router>
+      <div className="App min-h-screen bg-gray-50">
+        <Toaster position="top-right" />
+        
+        {/* Debug Helper - Only show when user is authenticated */}
+        {user && (
+          <div className="container mx-auto px-4 py-2">
+            <DebugHelper />
+          </div>
+        )}
+        
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/workspaces" element={
+            <ProtectedRoute>
+              <Layout>
+                <Workspaces />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/workspaces/create" element={
+            <ProtectedRoute>
+              <Layout>
+                <CreateWorkspace />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/workspaces/:id" element={
+            <ProtectedRoute>
+              <Layout>
+                <WorkspaceDetail />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/projects" element={
+            <ProtectedRoute>
+              <Layout>
+                <Projects />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/tasks" element={
+            <ProtectedRoute>
+              <Layout>
+                <Tasks />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/ai-dashboard" element={
+            <ProtectedRoute>
+              <Layout>
+                <AIDashboard />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin" element={
+            <ProtectedRoute admin>
+              <Layout>
+                <AdminPanel />
+              </Layout>
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </div>
+    </Router>
+  );
+};
+
+function App() {
+  return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
-          <div className="App min-h-screen bg-gray-50">
-            <Toaster position="top-right" />
-            
-            {/* Debug Helper - Only show when user is authenticated */}
-            {user && (
-              <div className="container mx-auto px-4 py-2">
-                <DebugHelper />
-              </div>
-            )}
-            
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Dashboard />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/workspaces" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Workspaces />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/workspaces/create" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <CreateWorkspace />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/workspaces/:id" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <WorkspaceDetail />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/projects" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Projects />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/tasks" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Tasks />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/ai-dashboard" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <AIDashboard />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/admin" element={
-                <ProtectedRoute admin>
-                  <Layout>
-                    <AdminPanel />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </div>
-        </Router>
+        <AppContent /> {/* Now useAuth works here */}
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -2,13 +2,27 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { workspaceService } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 export const DebugHelper: React.FC = () => {
+  const { user } = useAuth();
+  
+  // Only run the query if user is authenticated
   const { data, error, isLoading } = useQuery({
     queryKey: ['debug-workspaces'],
     queryFn: workspaceService.getMyWorkspaces,
-    retry: false
+    retry: false,
+    enabled: !!user // Only fetch if user exists
   });
+
+  if (!user) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+        <h3 className="text-yellow-800 font-medium">Debug: Not Authenticated</h3>
+        <p className="text-yellow-600 text-sm">User is not logged in</p>
+      </div>
+    );
+  }
 
   if (isLoading) return <div>Debug: Loading...</div>;
   
