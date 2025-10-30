@@ -17,12 +17,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate('/login');
   };
 
-  const navigation = [
-  { name: 'Dashboard', href: '/', icon: '📊' },
-  { name: 'Workspaces', href: '/workspaces', icon: '🏢' },
-  { name: 'Projects', href: '/projects', icon: '📁' },
-  { name: 'My Tasks', href: '/tasks', icon: '✅' },
-];
+    const navigation = [
+    { name: 'Dashboard', href: '/', icon: '📊' },
+    { name: 'AI Assistant', href: '/ai-dashboard', icon: '🤖' }, // Add this line
+    { name: 'Workspaces', href: '/workspaces', icon: '🏢' },
+    { name: 'Projects', href: '/projects', icon: '📁' },
+    { name: 'My Tasks', href: '/tasks', icon: '✅' },
+    ];
 
   const isActive = (path: string) => location.pathname === path;
 

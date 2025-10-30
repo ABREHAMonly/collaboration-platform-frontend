@@ -1,7 +1,6 @@
 import axios from 'axios';
 import type { User, Workspace, Project, Task } from '../types';
 
-// Use environment variable with fallback
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://collaboration-platform-9ngo.onrender.com';
 
 const api = axios.create({
@@ -77,8 +76,14 @@ export const workspaceService = {
             name
             description
             createdAt
+            createdBy {
+              id
+              email
+            }
             members {
+              id
               user {
+                id
                 email
               }
               role
@@ -98,6 +103,11 @@ export const workspaceService = {
             id
             name
             description
+            createdAt
+            createdBy {
+              id
+              email
+            }
           }
         }
       `,
@@ -117,6 +127,10 @@ export const workspaceService = {
             name
             description
             createdAt
+            createdBy {
+              id
+              email
+            }
             members {
               id
               user {
@@ -125,18 +139,33 @@ export const workspaceService = {
               }
               role
             }
-            projects {
-              id
-              name
-              description
-              createdAt
-            }
           }
         }
       `,
       variables: { id }
     });
     return response.data.data.workspace;
+  },
+
+  async addWorkspaceMember(workspaceId: string, userId: string, role: string = 'MEMBER'): Promise<any> {
+    const response = await api.post<GraphQLResponse<{ addWorkspaceMember: any }>>('/graphql', {
+      query: `
+        mutation AddWorkspaceMember($input: AddWorkspaceMemberInput!) {
+          addWorkspaceMember(input: $input) {
+            id
+            user {
+              id
+              email
+            }
+            role
+          }
+        }
+      `,
+      variables: {
+        input: { workspaceId, userId, role }
+      }
+    });
+    return response.data.data.addWorkspaceMember;
   }
 };
 
@@ -150,10 +179,10 @@ export const projectService = {
             name
             description
             createdAt
-            tasks {
+            workspaceId
+            createdBy {
               id
-              title
-              status
+              email
             }
           }
         }
@@ -171,6 +200,12 @@ export const projectService = {
             id
             name
             description
+            workspaceId
+            createdAt
+            createdBy {
+              id
+              email
+            }
           }
         }
       `,
@@ -194,6 +229,11 @@ export const taskService = {
             status
             dueDate
             createdAt
+            projectId
+            createdBy {
+              id
+              email
+            }
             assignedTo {
               id
               email
@@ -219,10 +259,7 @@ export const taskService = {
             project {
               id
               name
-              workspace {
-                id
-                name
-              }
+              workspaceId
             }
           }
         }
@@ -241,6 +278,8 @@ export const taskService = {
             title
             description
             status
+            projectId
+            createdAt
           }
         }
       `,
@@ -257,6 +296,7 @@ export const taskService = {
             id
             title
             status
+            description
           }
         }
       `,
@@ -301,7 +341,6 @@ export const aiService = {
   }
 };
 
-// SINGLE adminService declaration with all methods
 export const adminService = {
   async getAllWorkspaces(): Promise<Workspace[]> {
     const response = await api.post<GraphQLResponse<{ getAllWorkspaces: Workspace[] }>>('/graphql', {
@@ -357,6 +396,27 @@ export const adminService = {
       variables: { input }
     });
     return response.data.data.adminResetPassword;
+  },
+
+  async getAuditLogs(filters?: { level?: string; userId?: string; startDate?: string; endDate?: string; limit?: number }): Promise<any[]> {
+    const response = await api.post<GraphQLResponse<{ getAuditLogs: any[] }>>('/graphql', {
+      query: `
+        query GetAuditLogs($level: LogLevel, $userId: ID, $startDate: DateTime, $endDate: DateTime, $limit: Int) {
+          getAuditLogs(level: $level, userId: $userId, startDate: $startDate, endDate: $endDate, limit: $limit) {
+            id
+            timestamp
+            level
+            userId
+            ipAddress
+            action
+            details
+            message
+          }
+        }
+      `,
+      variables: filters
+    });
+    return response.data.data.getAuditLogs;
   }
 };
 

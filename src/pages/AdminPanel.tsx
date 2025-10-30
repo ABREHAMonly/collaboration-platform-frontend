@@ -20,11 +20,18 @@ const AdminPanel: React.FC = () => {
     queryFn: adminService.getAllWorkspaces,
   });
 
+  const { data: auditLogs, isLoading: auditLogsLoading, refetch: refetchAuditLogs } = useQuery({
+    queryKey: ['audit-logs'],
+    queryFn: () => adminService.getAuditLogs({ limit: 50 }),
+    enabled: activeTab === 'audit',
+  });
+
   const banMutation = useMutation({
     mutationFn: adminService.banUser,
     onSuccess: () => {
       toast.success('User banned successfully');
       queryClient.invalidateQueries({ queryKey: ['admin-workspaces'] });
+      refetchAuditLogs(); // Refresh audit logs to see the ban action
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to ban user');
@@ -37,6 +44,7 @@ const AdminPanel: React.FC = () => {
     onSuccess: () => {
       toast.success('Password reset successfully');
       setResetPasswordData({ userId: '', newPassword: '' });
+      refetchAuditLogs(); // Refresh audit logs
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to reset password');
@@ -125,7 +133,7 @@ const AdminPanel: React.FC = () => {
             <div className="space-y-6">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">User Management</h2>
-                <div className="bg-white border border-gray-200 rounded-lg">
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                   <div className="grid grid-cols-4 gap-4 p-4 bg-gray-50 border-b border-gray-200 font-medium text-gray-700">
                     <div>Email</div>
                     <div>Status</div>
@@ -234,13 +242,53 @@ const AdminPanel: React.FC = () => {
           {activeTab === 'audit' && (
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Audit Logs</h2>
-              <div className="bg-gray-50 p-8 text-center rounded-lg">
-                <div className="text-4xl mb-2">📊</div>
-                <p className="text-gray-500">Audit logs are stored in the database and can be accessed via GraphQL</p>
-                <p className="text-sm text-gray-400 mt-2">
-                  Use the GraphQL query `getAuditLogs` to view security and system logs
-                </p>
-              </div>
+              {auditLogsLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : auditLogs && auditLogs.length > 0 ? (
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="grid grid-cols-6 gap-4 p-4 bg-gray-50 border-b border-gray-200 font-medium text-gray-700 text-sm">
+                    <div>Timestamp</div>
+                    <div>Level</div>
+                    <div>User</div>
+                    <div>Action</div>
+                    <div>IP</div>
+                    <div>Details</div>
+                  </div>
+                  {auditLogs.map((log: any) => (
+                    <div key={log.id} className="grid grid-cols-6 gap-4 p-4 border-b border-gray-200 text-sm">
+                      <div className="text-gray-500">
+                        {new Date(log.timestamp).toLocaleString()}
+                      </div>
+                      <div>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          log.level === 'error' ? 'bg-red-100 text-red-800' :
+                          log.level === 'warn' ? 'bg-yellow-100 text-yellow-800' :
+                          log.level === 'security' ? 'bg-purple-100 text-purple-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {log.level}
+                        </span>
+                      </div>
+                      <div className="text-gray-600">{log.userId || 'System'}</div>
+                      <div className="text-gray-600">{log.action}</div>
+                      <div className="text-gray-500">{log.ipAddress || 'N/A'}</div>
+                      <div className="text-gray-500 truncate" title={JSON.stringify(log.details)}>
+                        {JSON.stringify(log.details).substring(0, 50)}...
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-gray-50 p-8 text-center rounded-lg">
+                  <div className="text-4xl mb-2">📊</div>
+                  <p className="text-gray-500">No audit logs found</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Audit logs will appear here when users perform actions like creating workspaces, banning users, etc.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

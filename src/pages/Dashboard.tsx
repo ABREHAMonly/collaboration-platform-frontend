@@ -80,6 +80,40 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+{/* AI Quick Access */}
+<div className="bg-white shadow rounded-lg p-6">
+  <div className="flex justify-between items-center mb-4">
+    <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
+    <Link
+      to="/ai-dashboard"
+      className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+    >
+      Open AI Dashboard
+    </Link>
+  </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="p-4 border border-gray-200 rounded-lg">
+      <h3 className="font-medium text-gray-900 mb-2">Task Summarization</h3>
+      <p className="text-sm text-gray-600 mb-3">Get AI-powered summaries of complex tasks</p>
+      <Link
+        to="/ai-dashboard"
+        className="text-purple-600 hover:text-purple-500 text-sm font-medium"
+      >
+        Try it now →
+      </Link>
+    </div>
+    <div className="p-4 border border-gray-200 rounded-lg">
+      <h3 className="font-medium text-gray-900 mb-2">Task Generation</h3>
+      <p className="text-sm text-gray-600 mb-3">Generate tasks automatically from project descriptions</p>
+      <Link
+        to="/ai-dashboard"
+        className="text-purple-600 hover:text-purple-500 text-sm font-medium"
+      >
+        Generate tasks →
+      </Link>
+    </div>
+  </div>
+</div>
 
       {/* Recent Workspaces */}
       <div className="bg-white shadow rounded-lg p-6">

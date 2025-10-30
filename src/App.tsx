@@ -12,6 +12,8 @@ import WorkspaceDetail from './pages/WorkspaceDetail';
 import Projects from './pages/Projects';
 import Tasks from './pages/Tasks';
 import AdminPanel from './pages/AdminPanel';
+import AIDashboard from './pages/AIDashboard';
+
 
 // Components
 import Layout from './components/Layout';
@@ -98,6 +100,13 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Tasks />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/ai-dashboard" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AIDashboard />
                   </Layout>
                 </ProtectedRoute>
               } />
