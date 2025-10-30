@@ -3,28 +3,33 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { taskService } from '../services/api';
 import toast from 'react-hot-toast';
-import type { Task as ApiTask } from '../types'; // Import and rename to avoid conflict
-
-// Use the imported type directly or create a compatible local type
-type Task = ApiTask;
+import { useAuth } from '../hooks/useAuth';
 
 const Tasks: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  const { data: tasks, isLoading } = useQuery({
+  const { data: tasks, isLoading, error } = useQuery({
     queryKey: ['my-tasks'],
     queryFn: () => taskService.getMyAssignedTasks(),
+    enabled: !!user, // Only fetch if user is authenticated
+    retry: 1,
   });
 
   // Fixed updateTask mutation using GraphQL
   const updateTaskMutation = useMutation({
     mutationFn: async (input: { taskId: string; status: string }) => {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch('https://collaboration-platform-9ngo.onrender.com/graphql', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           query: `
@@ -61,6 +66,10 @@ const Tasks: React.FC = () => {
         throw new Error(result.errors[0].message);
       }
       
+      if (!result.data || !result.data.updateTask) {
+        throw new Error('Failed to update task');
+      }
+      
       return result.data.updateTask;
     },
     onSuccess: () => {
@@ -68,7 +77,15 @@ const Tasks: React.FC = () => {
       toast.success('Task updated successfully!');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update task');
+      console.error('Update task error:', error);
+      if (error.message.includes('token') || error.message.includes('auth')) {
+        toast.error('Authentication error. Please log in again.');
+        // Redirect to login or refresh token
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+      } else {
+        toast.error(error.message || 'Failed to update task');
+      }
     },
   });
 
@@ -77,6 +94,10 @@ const Tasks: React.FC = () => {
   );
 
   const handleStatusChange = (taskId: string, newStatus: string) => {
+    if (!user) {
+      toast.error('Please log in to update tasks');
+      return;
+    }
     updateTaskMutation.mutate({
       taskId,
       status: newStatus
@@ -96,6 +117,24 @@ const Tasks: React.FC = () => {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <div className="text-red-500 text-xl mb-4">⚠️</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading tasks</h3>
+          <p className="text-gray-500 mb-4">{(error as Error).message}</p>
+          <button 
+            onClick={() => queryClient.refetchQueries({ queryKey: ['my-tasks'] })}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -121,7 +160,7 @@ const Tasks: React.FC = () => {
       {/* Tasks List */}
       <div className="bg-white shadow rounded-lg">
         <div className="divide-y divide-gray-200">
-          {filteredTasks?.map((task) => (
+          {filteredTasks?.map((task: any) => (
             <div key={task.id} className="p-6 hover:bg-gray-50">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -140,11 +179,15 @@ const Tasks: React.FC = () => {
                     value={task.status}
                     onChange={(e) => handleStatusChange(task.id, e.target.value)}
                     className={`px-3 py-1 text-sm rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getStatusColor(task.status)}`}
+                    disabled={updateTaskMutation.isPending}
                   >
                     <option value="TODO">To Do</option>
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="DONE">Done</option>
                   </select>
+                  {updateTaskMutation.isPending && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  )}
                 </div>
               </div>
             </div>

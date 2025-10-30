@@ -54,6 +54,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; admin?: boolean }> =
 };
 
 function App() {
+  const { user } = useAuth();
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -61,10 +63,12 @@ function App() {
           <div className="App min-h-screen bg-gray-50">
             <Toaster position="top-right" />
             
-            {/* Debug Helper - Keep for debugging */}
-            <div className="container mx-auto px-4 py-2">
-              <DebugHelper />
-            </div>
+            {/* Debug Helper - Only show when user is authenticated */}
+            {user && (
+              <div className="container mx-auto px-4 py-2">
+                <DebugHelper />
+              </div>
+            )}
             
             <Routes>
               <Route path="/login" element={<Login />} />
