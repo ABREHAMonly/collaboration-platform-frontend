@@ -34,7 +34,12 @@ const AIDashboard: React.FC = () => {
       setSummary(result);
       toast.success('Summary generated successfully!');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to generate summary');
+      console.error('AI Summary error:', error);
+      if (error.message?.includes('AI service not available')) {
+        toast.error('AI features are currently unavailable');
+      } else {
+        toast.error('Failed to generate summary. Please try again.');
+      }
     }
   };
 
@@ -53,7 +58,12 @@ const AIDashboard: React.FC = () => {
       toast.success(`Generated ${tasks.length} tasks successfully!`);
       setPrompt('');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to generate tasks');
+      console.error('AI Task generation error:', error);
+      if (error.message?.includes('AI service not available')) {
+        toast.error('AI features are currently unavailable');
+      } else {
+        toast.error('Failed to generate tasks. Please try again.');
+      }
     }
   };
 
@@ -178,6 +188,24 @@ const AIDashboard: React.FC = () => {
           <div>
             <h4 className="font-medium mb-1">Task Generation</h4>
             <p>Describe a project goal and AI will create structured tasks automatically in your project.</p>
+          </div>
+        </div>
+      </div>
+   {/* AI Status Indicator */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <span className="text-yellow-400 text-lg">⚠️</span>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-yellow-800">
+              AI Features Status
+            </h3>
+            <div className="mt-2 text-sm text-yellow-700">
+              <p>
+                AI features require a valid Gemini API key. Some functionality may be limited.
+              </p>
+            </div>
           </div>
         </div>
       </div>

@@ -1,7 +1,8 @@
+// types.ts - UPDATED
 export interface User {
   id: string;
   email: string;
-  globalStatus: string;
+  globalStatus: 'ACTIVE' | 'BANNED' | 'ADMIN';
   createdAt?: string;
   updatedAt?: string;
   lastLogin?: string;
@@ -12,7 +13,7 @@ export interface Workspace {
   name: string;
   description?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   createdBy: User;
   members: WorkspaceMember[];
   projects?: Project[];
@@ -22,7 +23,7 @@ export interface WorkspaceMember {
   id: string;
   user: User;
   role: 'OWNER' | 'MEMBER' | 'VIEWER';
-  joinedAt: string;
+  joinedAt?: string;
 }
 
 export interface Project {
@@ -30,9 +31,9 @@ export interface Project {
   name: string;
   description?: string;
   workspaceId: string;
-  workspace?: Workspace; // Add workspace field
+  workspace?: Workspace;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   createdBy: User;
   members?: ProjectMember[];
   tasks?: Task[];
@@ -42,7 +43,7 @@ export interface ProjectMember {
   id: string;
   user: User;
   role: 'PROJECT_LEAD' | 'CONTRIBUTOR' | 'VIEWER';
-  joinedAt: string;
+  joinedAt?: string;
 }
 
 export interface Task {
@@ -51,12 +52,12 @@ export interface Task {
   description?: string;
   status: 'TODO' | 'IN_PROGRESS' | 'DONE';
   projectId: string;
-  createdAt: string;
-  updatedAt: string;
+  project?: Project;
   createdBy: User;
   assignedTo: User[];
   dueDate?: string;
-  project?: Project;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Notification {
@@ -64,7 +65,6 @@ export interface Notification {
   title: string;
   body?: string;
   status: 'DELIVERED' | 'SEEN';
-  recipientId: string;
   relatedEntityId?: string;
   entityType?: string;
   createdAt: string;

@@ -1,8 +1,12 @@
-//pages\Tasks.tsx
+// pages/Tasks.tsx
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { taskService } from '../services/api';
 import toast from 'react-hot-toast';
+import type { Task as ApiTask } from '../types'; // Import and rename to avoid conflict
+
+// Use the imported type directly or create a compatible local type
+type Task = ApiTask;
 
 const Tasks: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -13,14 +17,58 @@ const Tasks: React.FC = () => {
     queryFn: () => taskService.getMyAssignedTasks(),
   });
 
+  // Fixed updateTask mutation using GraphQL
   const updateTaskMutation = useMutation({
-    mutationFn: (input: any) => taskService.updateTask(input),
+    mutationFn: async (input: { taskId: string; status: string }) => {
+      const response = await fetch('https://collaboration-platform-9ngo.onrender.com/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+        body: JSON.stringify({
+          query: `
+            mutation UpdateTask($input: UpdateTaskInput!) {
+              updateTask(input: $input) {
+                id
+                title
+                description
+                status
+                dueDate
+                project {
+                  id
+                  name
+                  workspace {
+                    id
+                    name
+                  }
+                }
+              }
+            }
+          `,
+          variables: {
+            input: {
+              taskId: input.taskId,
+              status: input.status
+            }
+          }
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+      
+      return result.data.updateTask;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
       toast.success('Task updated successfully!');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update task');
+      toast.error(error.message || 'Failed to update task');
     },
   });
 
@@ -78,7 +126,7 @@ const Tasks: React.FC = () => {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h3 className="text-lg font-medium text-gray-900">{task.title}</h3>
-                  <p className="text-gray-600 mt-1">{task.description}</p>
+                  <p className="text-gray-600 mt-1">{task.description || 'No description'}</p>
                   <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                     <span>Project: {task.project?.name}</span>
                     <span>Workspace: {task.project?.workspace?.name}</span>

@@ -53,9 +53,11 @@ const AdminPanel: React.FC = () => {
   });
 
   // Extract all users from workspaces
+ // FIXED: Extract all users from workspaces properly
   const allUsers = React.useMemo(() => {
     if (!allWorkspaces) return [];
-    const usersMap = new Map();
+    
+    const usersMap = new Map<string, any>();
     
     allWorkspaces.forEach(workspace => {
       // Add workspace creator
@@ -67,12 +69,16 @@ const AdminPanel: React.FC = () => {
       }
       
       // Add workspace members
-      workspace.members.forEach(member => {
-        usersMap.set(member.user.id, {
-          ...member.user,
-          lastActive: workspace.createdAt
+      if (workspace.members) {
+        workspace.members.forEach(member => {
+          if (member.user) {
+            usersMap.set(member.user.id, {
+              ...member.user,
+              lastActive: workspace.createdAt
+            });
+          }
         });
-      });
+      }
     });
     
     return Array.from(usersMap.values());

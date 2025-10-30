@@ -1,14 +1,12 @@
-//services\api.ts
-// services/api.ts - FIXED
+// services/api.ts - COMPLETELY FIXED
 import axios from 'axios';
 import type { User, Workspace, Project, Task } from '../types';
 
-// Use Render URL directly since CORS is configured
 const API_BASE_URL = 'https://collaboration-platform-9ngo.onrender.com';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // Important for cookies
+  withCredentials: true,
 });
 
 // Add token to requests
@@ -32,14 +30,6 @@ api.interceptors.response.use(
   }
 );
 
-
-
-interface LoginResponse {
-  user: User;
-  accessToken: string;
-  refreshToken: string;
-}
-
 interface GraphQLResponse<T> {
   data: T;
   errors?: Array<{ message: string }>;
@@ -58,7 +48,7 @@ export const authService = {
   async getMe(): Promise<User> {
     const response = await api.post<GraphQLResponse<{ me: User }>>('/graphql', {
       query: `
-        query {
+        query GetMe {
           me {
             id
             email
@@ -67,6 +57,11 @@ export const authService = {
         }
       `
     });
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
     return response.data.data.me;
   },
 };
@@ -75,7 +70,7 @@ export const workspaceService = {
   async getMyWorkspaces(): Promise<Workspace[]> {
     const response = await api.post<GraphQLResponse<{ myWorkspaces: Workspace[] }>>('/graphql', {
       query: `
-        query {
+        query GetMyWorkspaces {
           myWorkspaces {
             id
             name
@@ -97,7 +92,13 @@ export const workspaceService = {
         }
       `
     });
-    return response.data.data.myWorkspaces;
+    
+    if (response.data.errors) {
+      console.error('GraphQL Errors:', response.data.errors);
+      throw new Error(response.data.errors[0].message);
+    }
+    
+    return response.data.data.myWorkspaces || [];
   },
 
   async createWorkspace(name: string, description?: string): Promise<Workspace> {
@@ -117,9 +118,17 @@ export const workspaceService = {
         }
       `,
       variables: {
-        input: { name, description }
+        input: { 
+          name, 
+          description: description || '' 
+        }
       }
     });
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
     return response.data.data.createWorkspace;
   },
 
@@ -149,28 +158,12 @@ export const workspaceService = {
       `,
       variables: { id }
     });
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
     return response.data.data.workspace;
-  },
-
-  async addWorkspaceMember(workspaceId: string, userId: string, role: string = 'MEMBER'): Promise<any> {
-    const response = await api.post<GraphQLResponse<{ addWorkspaceMember: any }>>('/graphql', {
-      query: `
-        mutation AddWorkspaceMember($input: AddWorkspaceMemberInput!) {
-          addWorkspaceMember(input: $input) {
-            id
-            user {
-              id
-              email
-            }
-            role
-          }
-        }
-      `,
-      variables: {
-        input: { workspaceId, userId, role }
-      }
-    });
-    return response.data.data.addWorkspaceMember;
   }
 };
 
@@ -184,7 +177,6 @@ export const projectService = {
             name
             description
             createdAt
-            workspaceId
             createdBy {
               id
               email
@@ -194,7 +186,12 @@ export const projectService = {
       `,
       variables: { workspaceId }
     });
-    return response.data.data.workspaceProjects;
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
+    return response.data.data.workspaceProjects || [];
   },
 
   async createProject(name: string, description: string, workspaceId: string): Promise<Project> {
@@ -205,7 +202,6 @@ export const projectService = {
             id
             name
             description
-            workspaceId
             createdAt
             createdBy {
               id
@@ -215,42 +211,23 @@ export const projectService = {
         }
       `,
       variables: {
-        input: { name, description, workspaceId }
+        input: { 
+          name, 
+          description, 
+          workspaceId 
+        }
       }
     });
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
     return response.data.data.createProject;
   }
 };
 
 export const taskService = {
-  async getProjectTasks(projectId: string): Promise<Task[]> {
-    const response = await api.post<GraphQLResponse<{ projectTasks: Task[] }>>('/graphql', {
-      query: `
-        query GetProjectTasks($projectId: ID!) {
-          projectTasks(projectId: $projectId) {
-            id
-            title
-            description
-            status
-            dueDate
-            createdAt
-            projectId
-            createdBy {
-              id
-              email
-            }
-            assignedTo {
-              id
-              email
-            }
-          }
-        }
-      `,
-      variables: { projectId }
-    });
-    return response.data.data.projectTasks;
-  },
-
   async getMyAssignedTasks(status?: string): Promise<Task[]> {
     const response = await api.post<GraphQLResponse<{ myAssignedTasks: Task[] }>>('/graphql', {
       query: `
@@ -264,50 +241,22 @@ export const taskService = {
             project {
               id
               name
-              workspaceId
+              workspace {
+                id
+                name
+              }
             }
           }
         }
       `,
-      variables: { status }
+      variables: status ? { status } : {}
     });
-    return response.data.data.myAssignedTasks;
-  },
-
-  async createTask(input: { title: string; description?: string; projectId: string; assignedToIds?: string[]; dueDate?: string }): Promise<Task> {
-    const response = await api.post<GraphQLResponse<{ createTask: Task }>>('/graphql', {
-      query: `
-        mutation CreateTask($input: CreateTaskInput!) {
-          createTask(input: $input) {
-            id
-            title
-            description
-            status
-            projectId
-            createdAt
-          }
-        }
-      `,
-      variables: { input }
-    });
-    return response.data.data.createTask;
-  },
-
-  async updateTask(input: { taskId: string; title?: string; description?: string; status?: string; assignedToIds?: string[]; dueDate?: string }): Promise<Task> {
-    const response = await api.post<GraphQLResponse<{ updateTask: Task }>>('/graphql', {
-      query: `
-        mutation UpdateTask($input: UpdateTaskInput!) {
-          updateTask(input: $input) {
-            id
-            title
-            status
-            description
-          }
-        }
-      `,
-      variables: { input }
-    });
-    return response.data.data.updateTask;
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
+    return response.data.data.myAssignedTasks || [];
   }
 };
 
@@ -323,6 +272,11 @@ export const aiService = {
         input: { taskDescription }
       }
     });
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
     return response.data.data.summarizeTask;
   },
 
@@ -342,7 +296,12 @@ export const aiService = {
         input: { prompt, projectId }
       }
     });
-    return response.data.data.generateTasksFromPrompt;
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
+    return response.data.data.generateTasksFromPrompt || [];
   }
 };
 
@@ -350,7 +309,7 @@ export const adminService = {
   async getAllWorkspaces(): Promise<Workspace[]> {
     const response = await api.post<GraphQLResponse<{ getAllWorkspaces: Workspace[] }>>('/graphql', {
       query: `
-        query {
+        query GetAllWorkspaces {
           getAllWorkspaces {
             id
             name
@@ -372,7 +331,38 @@ export const adminService = {
         }
       `
     });
-    return response.data.data.getAllWorkspaces;
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
+    return response.data.data.getAllWorkspaces || [];
+  },
+
+  async getAuditLogs(filters?: any): Promise<any[]> {
+    const response = await api.post<GraphQLResponse<{ getAuditLogs: any[] }>>('/graphql', {
+      query: `
+        query GetAuditLogs($limit: Int) {
+          getAuditLogs(limit: $limit) {
+            id
+            timestamp
+            level
+            userId
+            ipAddress
+            action
+            details
+            message
+          }
+        }
+      `,
+      variables: { limit: 50 }
+    });
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
+    return response.data.data.getAuditLogs || [];
   },
 
   async banUser(userId: string): Promise<User> {
@@ -388,6 +378,11 @@ export const adminService = {
       `,
       variables: { userId }
     });
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
     return response.data.data.userBan;
   },
 
@@ -400,28 +395,12 @@ export const adminService = {
       `,
       variables: { input }
     });
+    
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+    
     return response.data.data.adminResetPassword;
-  },
-
-  async getAuditLogs(filters?: { level?: string; userId?: string; startDate?: string; endDate?: string; limit?: number }): Promise<any[]> {
-    const response = await api.post<GraphQLResponse<{ getAuditLogs: any[] }>>('/graphql', {
-      query: `
-        query GetAuditLogs($level: LogLevel, $userId: ID, $startDate: DateTime, $endDate: DateTime, $limit: Int) {
-          getAuditLogs(level: $level, userId: $userId, startDate: $startDate, endDate: $endDate, limit: $limit) {
-            id
-            timestamp
-            level
-            userId
-            ipAddress
-            action
-            details
-            message
-          }
-        }
-      `,
-      variables: filters
-    });
-    return response.data.data.getAuditLogs;
   }
 };
 

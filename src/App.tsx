@@ -1,3 +1,4 @@
+// App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -14,9 +15,9 @@ import Tasks from './pages/Tasks';
 import AdminPanel from './pages/AdminPanel';
 import AIDashboard from './pages/AIDashboard';
 
-
 // Components
 import Layout from './components/Layout';
+import { DebugHelper } from './components/DebugHelper';
 
 // Hooks
 import { AuthProvider, useAuth } from './hooks/useAuth';
@@ -59,6 +60,12 @@ function App() {
         <Router>
           <div className="App min-h-screen bg-gray-50">
             <Toaster position="top-right" />
+            
+            {/* Debug Helper - Keep for debugging */}
+            <div className="container mx-auto px-4 py-2">
+              <DebugHelper />
+            </div>
+            
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={
