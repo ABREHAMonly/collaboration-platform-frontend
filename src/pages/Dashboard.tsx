@@ -3,23 +3,24 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { workspaceService, taskService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import type { Workspace, Task } from '../types';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
 
-  const { data: workspaces, isLoading: workspacesLoading } = useQuery({
+  const { data: workspaces, isLoading: workspacesLoading } = useQuery<Workspace[]>({
     queryKey: ['workspaces'],
     queryFn: workspaceService.getMyWorkspaces,
   });
 
-  const { data: tasks, isLoading: tasksLoading } = useQuery({
+  const { data: tasks, isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ['my-tasks'],
     queryFn: () => taskService.getMyAssignedTasks(),
   });
 
-  const todoTasks = tasks?.filter(task => task.status === 'TODO') || [];
-  const inProgressTasks = tasks?.filter(task => task.status === 'IN_PROGRESS') || [];
-  const doneTasks = tasks?.filter(task => task.status === 'DONE') || [];
+  const todoTasks = tasks?.filter((task: Task) => task.status === 'TODO') || [];
+  const inProgressTasks = tasks?.filter((task: Task) => task.status === 'IN_PROGRESS') || [];
+  const doneTasks = tasks?.filter((task: Task) => task.status === 'DONE') || [];
 
   if (workspacesLoading || tasksLoading) {
     return (
@@ -92,7 +93,7 @@ const Dashboard: React.FC = () => {
           </Link>
         </div>
         <div className="space-y-4">
-          {workspaces?.slice(0, 3).map((workspace) => (
+          {workspaces?.slice(0, 3).map((workspace: Workspace) => (
             <div key={workspace.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
               <div>
                 <h3 className="font-medium text-gray-900">{workspace.name}</h3>
@@ -126,7 +127,7 @@ const Dashboard: React.FC = () => {
           </Link>
         </div>
         <div className="space-y-3">
-          {tasks?.slice(0, 5).map((task) => (
+          {tasks?.slice(0, 5).map((task: Task) => (
             <div key={task.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
               <div className="flex items-center space-x-3">
                 <div className={`w-3 h-3 rounded-full ${

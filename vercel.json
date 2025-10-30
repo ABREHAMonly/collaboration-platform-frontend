@@ -1,32 +1,9 @@
 {
+  "buildCommand": "npm run build:production",
+  "outputDirectory": "dist",
+  "devCommand": "npm run dev",
+  "cleanUrls": true,
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'none'"
-        }
-      ]
-    },
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "https://myapp.onrender.com"
-        }
-      ]
-    }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

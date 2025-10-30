@@ -1,6 +1,8 @@
 import axios from 'axios';
+import type { User, Workspace, Project, Task } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+// Use environment variable with fallback for development
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://collaboration-platform-9ngo.onrender.com';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -28,18 +30,30 @@ api.interceptors.response.use(
   }
 );
 
+
+interface LoginResponse {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+}
+
+interface GraphQLResponse<T> {
+  data: T;
+  errors?: Array<{ message: string }>;
+}
+
 export const authService = {
-  async login(email: string, password: string) {
-    const response = await api.post('/api/auth/login', { email, password });
+  async login(email: string, password: string): Promise<LoginResponse> {
+    const response = await api.post<LoginResponse>('/api/auth/login', { email, password });
     return response.data;
   },
 
-  async logout() {
+  async logout(): Promise<void> {
     await api.post('/api/auth/logout');
   },
 
-  async getMe() {
-    const response = await api.post('/graphql', {
+  async getMe(): Promise<User> {
+    const response = await api.post<GraphQLResponse<{ me: User }>>('/graphql', {
       query: `
         query {
           me {
@@ -52,16 +66,11 @@ export const authService = {
     });
     return response.data.data.me;
   },
-
-  async refreshToken() {
-    const response = await api.post('/api/auth/refresh-token');
-    return response.data;
-  }
 };
 
 export const workspaceService = {
-  async getMyWorkspaces() {
-    const response = await api.post('/graphql', {
+  async getMyWorkspaces(): Promise<Workspace[]> {
+    const response = await api.post<GraphQLResponse<{ myWorkspaces: Workspace[] }>>('/graphql', {
       query: `
         query {
           myWorkspaces {
@@ -82,8 +91,8 @@ export const workspaceService = {
     return response.data.data.myWorkspaces;
   },
 
-  async createWorkspace(name: string, description?: string) {
-    const response = await api.post('/graphql', {
+  async createWorkspace(name: string, description?: string): Promise<Workspace> {
+    const response = await api.post<GraphQLResponse<{ createWorkspace: Workspace }>>('/graphql', {
       query: `
         mutation CreateWorkspace($input: CreateWorkspaceInput!) {
           createWorkspace(input: $input) {
@@ -100,8 +109,8 @@ export const workspaceService = {
     return response.data.data.createWorkspace;
   },
 
-  async getWorkspace(id: string) {
-    const response = await api.post('/graphql', {
+  async getWorkspace(id: string): Promise<Workspace> {
+    const response = await api.post<GraphQLResponse<{ workspace: Workspace }>>('/graphql', {
       query: `
         query GetWorkspace($id: ID!) {
           workspace(id: $id) {
@@ -133,8 +142,8 @@ export const workspaceService = {
 };
 
 export const projectService = {
-  async getWorkspaceProjects(workspaceId: string) {
-    const response = await api.post('/graphql', {
+  async getWorkspaceProjects(workspaceId: string): Promise<Project[]> {
+    const response = await api.post<GraphQLResponse<{ workspaceProjects: Project[] }>>('/graphql', {
       query: `
         query GetWorkspaceProjects($workspaceId: ID!) {
           workspaceProjects(workspaceId: $workspaceId) {
@@ -155,8 +164,8 @@ export const projectService = {
     return response.data.data.workspaceProjects;
   },
 
-  async createProject(name: string, description: string, workspaceId: string) {
-    const response = await api.post('/graphql', {
+  async createProject(name: string, description: string, workspaceId: string): Promise<Project> {
+    const response = await api.post<GraphQLResponse<{ createProject: Project }>>('/graphql', {
       query: `
         mutation CreateProject($input: CreateProjectInput!) {
           createProject(input: $input) {
@@ -175,8 +184,8 @@ export const projectService = {
 };
 
 export const taskService = {
-  async getProjectTasks(projectId: string) {
-    const response = await api.post('/graphql', {
+  async getProjectTasks(projectId: string): Promise<Task[]> {
+    const response = await api.post<GraphQLResponse<{ projectTasks: Task[] }>>('/graphql', {
       query: `
         query GetProjectTasks($projectId: ID!) {
           projectTasks(projectId: $projectId) {
@@ -198,8 +207,8 @@ export const taskService = {
     return response.data.data.projectTasks;
   },
 
-  async getMyAssignedTasks(status?: string) {
-    const response = await api.post('/graphql', {
+  async getMyAssignedTasks(status?: string): Promise<Task[]> {
+    const response = await api.post<GraphQLResponse<{ myAssignedTasks: Task[] }>>('/graphql', {
       query: `
         query GetMyAssignedTasks($status: TaskStatus) {
           myAssignedTasks(status: $status) {
@@ -224,8 +233,8 @@ export const taskService = {
     return response.data.data.myAssignedTasks;
   },
 
-  async createTask(input: any) {
-    const response = await api.post('/graphql', {
+  async createTask(input: { title: string; description?: string; projectId: string; assignedToIds?: string[]; dueDate?: string }): Promise<Task> {
+    const response = await api.post<GraphQLResponse<{ createTask: Task }>>('/graphql', {
       query: `
         mutation CreateTask($input: CreateTaskInput!) {
           createTask(input: $input) {
@@ -241,8 +250,8 @@ export const taskService = {
     return response.data.data.createTask;
   },
 
-  async updateTask(input: any) {
-    const response = await api.post('/graphql', {
+  async updateTask(input: { taskId: string; title?: string; description?: string; status?: string; assignedToIds?: string[]; dueDate?: string }): Promise<Task> {
+    const response = await api.post<GraphQLResponse<{ updateTask: Task }>>('/graphql', {
       query: `
         mutation UpdateTask($input: UpdateTaskInput!) {
           updateTask(input: $input) {
@@ -259,8 +268,8 @@ export const taskService = {
 };
 
 export const adminService = {
-  async getAllWorkspaces() {
-    const response = await api.post('/graphql', {
+  async getAllWorkspaces(): Promise<Workspace[]> {
+    const response = await api.post<GraphQLResponse<{ getAllWorkspaces: Workspace[] }>>('/graphql', {
       query: `
         query {
           getAllWorkspaces {
@@ -284,8 +293,8 @@ export const adminService = {
     return response.data.data.getAllWorkspaces;
   },
 
-  async banUser(userId: string) {
-    const response = await api.post('/graphql', {
+  async banUser(userId: string): Promise<User> {
+    const response = await api.post<GraphQLResponse<{ userBan: User }>>('/graphql', {
       query: `
         mutation BanUser($userId: ID!) {
           userBan(userId: $userId) {

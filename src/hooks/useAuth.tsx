@@ -1,11 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authService } from '../services/api';
-
-interface User {
-  id: string;
-  email: string;
-  globalStatus: string;
-}
+import type { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
@@ -47,7 +42,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     localStorage.removeItem('accessToken');
     setUser(null);
-    authService.logout();
+    authService.logout().catch(() => {
+      // Ignore logout errors
+    });
   };
 
   return (
