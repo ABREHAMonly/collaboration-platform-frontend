@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { User, Workspace, Project, Task } from '../types';
 
-// Use environment variable with fallback for development
+// Use environment variable with fallback
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://collaboration-platform-9ngo.onrender.com';
 
 const api = axios.create({
@@ -29,6 +29,7 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
 
 
 interface LoginResponse {
