@@ -128,22 +128,54 @@ const restRequest = async <T>(endpoint: string, options: RequestInit = {}): Prom
 
 export const authService = {
   async login(email: string, password: string): Promise<any> {
-    const data = await graphqlRequest<{ login: { accessToken: string; user: User } }>(`
-      mutation Login($input: LoginInput!) {
-        login(input: $input) {
-          accessToken
-          user {
-            id
-            email
-            globalStatus
-            createdAt
+    try {
+      // Try GraphQL first
+      console.log('Attempting GraphQL login...');
+      const data = await graphqlRequest<{ login: { accessToken: string; user: User } }>(`
+        mutation Login($input: LoginInput!) {
+          login(input: $input) {
+            accessToken
+            refreshToken
+            user {
+              id
+              email
+              globalStatus
+              createdAt
+            }
           }
         }
+      `, {
+        input: { email, password }
+      });
+      
+      console.log('GraphQL login response:', data);
+      return data.login;
+    } catch (graphqlError) {
+      console.warn('GraphQL login failed, falling back to REST:', graphqlError);
+      
+      try {
+        // Fallback to REST login
+        console.log('Attempting REST login fallback...');
+        const restResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (!restResponse.ok) {
+          throw new Error(`REST login failed: ${restResponse.status}`);
+        }
+
+        const result = await restResponse.json();
+        console.log('REST login response:', result);
+        return result;
+      } catch (restError) {
+        console.error('Both GraphQL and REST login failed:', restError);
+        throw new Error('Login failed. Please try again.');
       }
-    `, {
-      input: { email, password }
-    });
-    return data.login;
+    }
   },
 
   async logout(): Promise<void> {
