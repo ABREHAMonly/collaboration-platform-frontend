@@ -1,4 +1,3 @@
-//hooks\useAuth.tsx
 // hooks/useAuth.tsx - FIXED
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authService } from '../services/api';

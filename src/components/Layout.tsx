@@ -18,20 +18,33 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate('/login');
   };
 
-    const navigation = [
+  const navigation = [
     { name: 'Dashboard', href: '/', icon: '📊' },
-    { name: 'AI Assistant', href: '/ai-dashboard', icon: '🤖' }, // Add this line
+    { name: 'AI Assistant', href: '/ai-dashboard', icon: '🤖' },
     { name: 'Workspaces', href: '/workspaces', icon: '🏢' },
     { name: 'Projects', href: '/projects', icon: '📁' },
     { name: 'My Tasks', href: '/tasks', icon: '✅' },
-    ];
+  ];
 
   const isActive = (path: string) => location.pathname === path;
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-gray-600 bg-opacity-50 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'block' : 'hidden'} md:block md:w-64 bg-white shadow-lg`}>
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out
+        md:relative md:translate-x-0 md:z-auto
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        bg-white shadow-lg
+      `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-4 bg-blue-600 text-white">
@@ -45,11 +58,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-4 space-y-2">
+          <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}
+                onClick={() => setSidebarOpen(false)}
                 className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                   isActive(item.href)
                     ? 'bg-blue-100 text-blue-700'
@@ -63,16 +77,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Admin Section */}
             {user?.globalStatus === 'ADMIN' && (
-            <div className="pt-4 mt-4 border-t border-gray-200">
+              <div className="pt-4 mt-4 border-t border-gray-200">
                 <p className="px-4 text-xs font-semibold text-gray-500 uppercase">Admin</p>
                 <Link
-                to="/admin"
-                className="flex items-center px-4 py-3 mt-2 text-sm font-medium text-red-700 rounded-lg bg-red-50 hover:bg-red-100"
+                  to="/admin"
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center px-4 py-3 mt-2 text-sm font-medium text-red-700 rounded-lg bg-red-50 hover:bg-red-100"
                 >
-                <span className="mr-3 text-lg">👑</span>
-                Admin Panel
+                  <span className="mr-3 text-lg">👑</span>
+                  Admin Panel
                 </Link>
-            </div>
+              </div>
             )}
           </nav>
 
@@ -94,7 +109,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
               <button
                 onClick={handleLogout}
-                className="ml-3 p-2 text-gray-400 hover:text-gray-500"
+                className="ml-3 p-2 text-gray-400 hover:text-gray-500 flex-shrink-0"
                 title="Logout"
               >
                 ⎋
@@ -105,7 +120,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top bar */}
         <header className="bg-white shadow-sm z-10">
           <div className="flex items-center justify-between h-16 px-4">
@@ -115,8 +130,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             >
               ☰
             </button>
-            <div className="flex-1 md:flex-none">
-              <h1 className="text-xl font-semibold text-gray-900">
+            <div className="flex-1 md:flex-none min-w-0">
+              <h1 className="text-xl font-semibold text-gray-900 truncate">
                 {navigation.find(nav => isActive(nav.href))?.name || 'Dashboard'}
               </h1>
             </div>
@@ -124,7 +139,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto p-4">
+        <main className="flex-1 overflow-auto p-2 md:p-4">
           {children}
         </main>
       </div>

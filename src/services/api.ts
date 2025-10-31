@@ -1,4 +1,4 @@
-// services/api.ts - COMPLETELY FIXED with network error handling
+// services/api.ts - COMPLETELY FIXED
 import type { User, Workspace, Project, Task } from '../types';
 
 const API_BASE_URL = 'https://collaboration-platform-9ngo.onrender.com';
@@ -128,22 +128,26 @@ const restRequest = async <T>(endpoint: string, options: RequestInit = {}): Prom
 
 export const authService = {
   async login(email: string, password: string): Promise<any> {
-    const response = await restRequest<{ accessToken: string; user: User }>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
+    const data = await graphqlRequest<{ login: { accessToken: string; user: User } }>(`
+      mutation Login($input: LoginInput!) {
+        login(input: $input) {
+          accessToken
+          user {
+            id
+            email
+            globalStatus
+            createdAt
+          }
+        }
+      }
+    `, {
+      input: { email, password }
     });
-    return response;
+    return data.login;
   },
 
   async logout(): Promise<void> {
-    try {
-      await restRequest('/api/auth/logout', { method: 'POST' });
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Even if logout fails, clear local storage
-    } finally {
-      localStorage.removeItem('accessToken');
-    }
+    localStorage.removeItem('accessToken');
   },
 
   async getMe(): Promise<User> {
@@ -189,10 +193,6 @@ export const workspaceService = {
       `);
       return data.myWorkspaces || [];
     } catch (error: any) {
-      // Return empty array instead of throwing for better UX
-      if (error.message.includes('Authentication') || error.message.includes('token')) {
-        throw error; // Re-throw auth errors
-      }
       console.error('Failed to fetch workspaces:', error);
       return [];
     }
@@ -206,6 +206,7 @@ export const workspaceService = {
           name
           description
           createdAt
+          updatedAt
           createdBy {
             id
             email
@@ -491,6 +492,3 @@ export const adminService = {
     return data.adminResetPassword;
   }
 };
-
-// Export the enhanced fetch for other uses
-export { fetchWithTimeout, graphqlRequest, restRequest };
