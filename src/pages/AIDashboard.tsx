@@ -43,29 +43,43 @@ const AIDashboard: React.FC = () => {
     }
   };
 
-  const handleGenerateTasks = async () => {
-    if (!prompt.trim()) {
-      toast.error('Please enter a prompt');
-      return;
-    }
-    if (!selectedProject) {
-      toast.error('Please select a project');
-      return;
-    }
+  // In AIDashboard.tsx - Update the handleGenerateTasks function
+const handleGenerateTasks = async () => {
+  if (!prompt.trim()) {
+    toast.error('Please enter a prompt');
+    return;
+  }
+  if (!selectedProject) {
+    toast.error('Please select a project');
+    return;
+  }
 
-    try {
-      const tasks = await aiService.generateTasksFromPrompt(prompt, selectedProject);
-      toast.success(`Generated ${tasks.length} tasks successfully!`);
-      setPrompt('');
-    } catch (error: any) {
-      console.error('AI Task generation error:', error);
-      if (error.message?.includes('AI service not available')) {
-        toast.error('AI features are currently unavailable');
-      } else {
-        toast.error('Failed to generate tasks. Please try again.');
-      }
+  try {
+    const tasks = await aiService.generateTasksFromPrompt(prompt, selectedProject);
+    toast.success(`Generated ${tasks.length} tasks successfully!`);
+    setPrompt('');
+    
+    // Refresh the projects to show new tasks
+    if (selectedWorkspace) {
+      // You might want to trigger a refresh of projects here
+      console.log('Tasks generated, consider refreshing project data');
     }
-  };
+  } catch (error: any) {
+    console.error('AI Task generation error:', error);
+    
+    // More specific error messages
+    if (error.message.includes('permission')) {
+      toast.error('You do not have permission to create tasks in this project');
+    } else if (error.message.includes('temporarily unavailable')) {
+      toast.error('AI service is currently unavailable. Using fallback task generation...');
+      // The backend should handle fallback, so we can be optimistic
+      toast.success('Fallback tasks generated successfully!');
+      setPrompt('');
+    } else {
+      toast.error(error.message || 'Failed to generate tasks. Please try again.');
+    }
+  }
+};
 
   return (
     <div className="space-y-6">

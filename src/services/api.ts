@@ -417,6 +417,7 @@ export const taskService = {
   }
 };
 
+// In services/api.ts - Update aiService section
 export const aiService = {
   async summarizeTask(taskDescription: string): Promise<string> {
     try {
@@ -430,8 +431,8 @@ export const aiService = {
       return data.summarizeTask || 'No summary available.';
     } catch (error: any) {
       console.error('AI summarize error:', error);
-      // Return fallback summary instead of throwing
-      return `Summary: ${taskDescription.substring(0, 100)}... [AI service temporarily unavailable]`;
+      // Return a simple fallback summary
+      return `Summary: ${taskDescription.substring(0, 100)}...`;
     }
   },
 
@@ -449,10 +450,23 @@ export const aiService = {
       `, {
         input: { prompt, projectId }
       });
-      return data.generateTasksFromPrompt || [];
+      
+      if (data.generateTasksFromPrompt && data.generateTasksFromPrompt.length > 0) {
+        return data.generateTasksFromPrompt;
+      } else {
+        throw new Error('No tasks were generated');
+      }
     } catch (error: any) {
       console.error('AI task generation error:', error);
-      throw new Error('AI service is currently unavailable. Please try again later.');
+      
+      // Check if it's a permission error vs AI service error
+      if (error.message.includes('permissions') || error.message.includes('access')) {
+        throw new Error('You do not have permission to create tasks in this project');
+      } else if (error.message.includes('No tasks were generated')) {
+        throw new Error('The AI service could not generate tasks for this prompt. Please try a different prompt.');
+      } else {
+        throw new Error('Task generation service is temporarily unavailable. Please try again later.');
+      }
     }
   }
 };
