@@ -1,10 +1,9 @@
-//pages\AIDashboard.tsx
-// pages/AIDashboard.tsx
+// pages/AIDashboard.tsx - UPDATED with task display
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { aiService, projectService, workspaceService } from '../services/api';
+import { aiService, projectService, workspaceService, taskService } from '../services/api';
 import toast from 'react-hot-toast';
-import type { Project, Workspace } from '../types';
+import type { Project, Workspace, Task } from '../types';
 
 const AIDashboard: React.FC = () => {
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
@@ -25,6 +24,13 @@ const AIDashboard: React.FC = () => {
     enabled: !!selectedWorkspace,
   });
 
+  // NEW: Query to get tasks for the selected project
+  const { data: projectTasks, refetch: refetchProjectTasks } = useQuery<Task[]>({
+    queryKey: ['project-tasks', selectedProject],
+    queryFn: () => taskService.getProjectTasks(selectedProject),
+    enabled: !!selectedProject,
+  });
+
   const handleSummarize = async () => {
     if (!taskDescription.trim()) {
       toast.error('Please enter a task description');
@@ -37,11 +43,7 @@ const AIDashboard: React.FC = () => {
       toast.success('Summary generated successfully!');
     } catch (error: any) {
       console.error('AI Summary error:', error);
-      if (error.message?.includes('AI service not available')) {
-        toast.error('AI features are currently unavailable');
-      } else {
-        toast.error('Failed to generate summary. Please try again.');
-      }
+      toast.error('Failed to generate summary. Please try again.');
     }
   };
 
@@ -60,26 +62,28 @@ const AIDashboard: React.FC = () => {
       toast.success(`Generated ${tasks.length} tasks successfully!`);
       setPrompt('');
       
-      // Refresh the projects to show new tasks
+      // Refresh the tasks for the current project
+      await refetchProjectTasks();
+      
+      // Also refresh projects to update task counts
       if (selectedWorkspace) {
         await queryClient.invalidateQueries({ 
           queryKey: ['workspace-projects', selectedWorkspace] 
         });
-        console.log('Tasks generated, projects data refreshed');
       }
+      
+      console.log('Tasks generated and data refreshed');
     } catch (error: any) {
       console.error('AI Task generation error:', error);
       
-      // More specific error messages
       if (error.message.includes('permission')) {
         toast.error('You do not have permission to create tasks in this project');
       } else if (error.message.includes('temporarily unavailable') || error.message.includes('fallback')) {
-        toast.error('AI service is currently unavailable. Using fallback task generation...');
-        // The backend should handle fallback, so we can be optimistic
-        toast.success('Fallback tasks generated successfully!');
+        toast.success('AI service unavailable. Fallback tasks generated successfully!');
         setPrompt('');
         
-        // Refresh data for fallback tasks too
+        // Refresh for fallback tasks too
+        await refetchProjectTasks();
         if (selectedWorkspace) {
           await queryClient.invalidateQueries({ 
             queryKey: ['workspace-projects', selectedWorkspace] 
@@ -195,11 +199,53 @@ const AIDashboard: React.FC = () => {
               Generate Tasks with AI
             </button>
             <p className="text-sm text-gray-500">
-              AI will generate 3-8 specific, actionable tasks based on your prompt and add them to the selected project.
+              AI will generate 3-5 specific, actionable tasks based on your prompt and add them to the selected project.
             </p>
           </div>
         </div>
       </div>
+
+      {/* NEW: Display Generated Tasks */}
+      {selectedProject && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Tasks in Selected Project</h3>
+            <button
+              onClick={() => refetchProjectTasks()}
+              className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
+            >
+              Refresh
+            </button>
+          </div>
+          
+          {projectTasks && projectTasks.length > 0 ? (
+            <div className="space-y-3">
+              {projectTasks.map((task) => (
+                <div key={task.id} className="p-4 border border-gray-200 rounded-lg">
+                  <h4 className="font-medium text-gray-900">{task.title}</h4>
+                  <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className={`px-2 py-1 text-xs rounded ${
+                      task.status === 'DONE' ? 'bg-green-100 text-green-800' :
+                      task.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {task.status}
+                    </span>
+                    {task.dueDate && (
+                      <span className="text-xs text-gray-500">
+                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-4">No tasks found in this project.</p>
+          )}
+        </div>
+      )}
 
       {/* AI Features Explanation */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
@@ -229,6 +275,7 @@ const AIDashboard: React.FC = () => {
             <div className="mt-2 text-sm text-yellow-700">
               <p>
                 AI features require a valid Gemini API key. Some functionality may be limited.
+                If AI is unavailable, mock tasks will be generated automatically.
               </p>
             </div>
           </div>

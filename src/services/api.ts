@@ -351,6 +351,38 @@ export const projectService = {
 };
 
 export const taskService = {
+  async getProjectTasks(projectId: string): Promise<Task[]> {
+    try {
+      const data = await graphqlRequest<{ projectTasks: Task[] }>(`
+        query GetProjectTasks($projectId: ID!) {
+          projectTasks(projectId: $projectId) {
+            id
+            title
+            description
+            status
+            dueDate
+            createdAt
+            project {
+              id
+              name
+            }
+            createdBy {
+              id
+              email
+            }
+            assignedTo {
+              id
+              email
+            }
+          }
+        }
+      `, { projectId });
+      return data.projectTasks || [];
+    } catch (error: any) {
+      console.error('Failed to fetch project tasks:', error);
+      return [];
+    }
+  },
   async getMyAssignedTasks(status?: string): Promise<Task[]> {
     try {
       const data = await graphqlRequest<{ myAssignedTasks: Task[] }>(`
@@ -417,7 +449,6 @@ export const taskService = {
   }
 };
 
-// In services/api.ts - Update aiService section
 export const aiService = {
   async summarizeTask(taskDescription: string): Promise<string> {
     try {
