@@ -262,25 +262,40 @@ const AIDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Status Indicator */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <span className="text-yellow-400 text-lg">⚠️</span>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-yellow-800">
-              AI Features Status
-            </h3>
-            <div className="mt-2 text-sm text-yellow-700">
-              <p>
-                AI features require a valid Gemini API key. Some functionality may be limited.
-                If AI is unavailable, mock tasks will be generated automatically.
-              </p>
-            </div>
-          </div>
-        </div>
+      // In AIDashboard.tsx - update the AI Status Indicator section
+{/* AI Status Indicator */}
+<div className={`border rounded-lg p-4 ${
+  AIService.getStatus().isAvailable 
+    ? 'bg-green-50 border-green-200' 
+    : 'bg-yellow-50 border-yellow-200'
+}`}>
+  <div className="flex items-center">
+    <div className="flex-shrink-0">
+      <span className={`text-lg ${
+        AIService.getStatus().isAvailable ? 'text-green-400' : 'text-yellow-400'
+      }`}>
+        {AIService.getStatus().isAvailable ? '✅' : '⚠️'}
+      </span>
+    </div>
+    <div className="ml-3">
+      <h3 className={`text-sm font-medium ${
+        AIService.getStatus().isAvailable ? 'text-green-800' : 'text-yellow-800'
+      }`}>
+        AI Features Status: {AIService.getStatus().isAvailable ? 'Active' : 'Limited'}
+      </h3>
+      <div className={`mt-2 text-sm ${
+        AIService.getStatus().isAvailable ? 'text-green-700' : 'text-yellow-700'
+      }`}>
+        <p>
+          {AIService.getStatus().isAvailable 
+            ? `Using ${AIService.getStatus().model} - AI features are fully operational`
+            : 'AI service is currently unavailable. Mock tasks will be generated automatically.'
+          }
+        </p>
       </div>
+    </div>
+  </div>
+</div>
     </div>
   );
 };
