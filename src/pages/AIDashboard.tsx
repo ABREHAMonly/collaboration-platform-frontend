@@ -1,6 +1,7 @@
 //pages\AIDashboard.tsx
+// pages/AIDashboard.tsx
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { aiService, projectService, workspaceService } from '../services/api';
 import toast from 'react-hot-toast';
 import type { Project, Workspace } from '../types';
@@ -11,6 +12,7 @@ const AIDashboard: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [summary, setSummary] = useState('');
+  const queryClient = useQueryClient();
 
   const { data: workspaces, isLoading: workspacesLoading } = useQuery<Workspace[]>({
     queryKey: ['workspaces'],
@@ -43,43 +45,51 @@ const AIDashboard: React.FC = () => {
     }
   };
 
-  // In AIDashboard.tsx - Update the handleGenerateTasks function
-const handleGenerateTasks = async () => {
-  if (!prompt.trim()) {
-    toast.error('Please enter a prompt');
-    return;
-  }
-  if (!selectedProject) {
-    toast.error('Please select a project');
-    return;
-  }
+  const handleGenerateTasks = async () => {
+    if (!prompt.trim()) {
+      toast.error('Please enter a prompt');
+      return;
+    }
+    if (!selectedProject) {
+      toast.error('Please select a project');
+      return;
+    }
 
-  try {
-    const tasks = await aiService.generateTasksFromPrompt(prompt, selectedProject);
-    toast.success(`Generated ${tasks.length} tasks successfully!`);
-    setPrompt('');
-    
-    // Refresh the projects to show new tasks
-    if (selectedWorkspace) {
-      // You might want to trigger a refresh of projects here
-      console.log('Tasks generated, consider refreshing project data');
-    }
-  } catch (error: any) {
-    console.error('AI Task generation error:', error);
-    
-    // More specific error messages
-    if (error.message.includes('permission')) {
-      toast.error('You do not have permission to create tasks in this project');
-    } else if (error.message.includes('temporarily unavailable')) {
-      toast.error('AI service is currently unavailable. Using fallback task generation...');
-      // The backend should handle fallback, so we can be optimistic
-      toast.success('Fallback tasks generated successfully!');
+    try {
+      const tasks = await aiService.generateTasksFromPrompt(prompt, selectedProject);
+      toast.success(`Generated ${tasks.length} tasks successfully!`);
       setPrompt('');
-    } else {
-      toast.error(error.message || 'Failed to generate tasks. Please try again.');
+      
+      // Refresh the projects to show new tasks
+      if (selectedWorkspace) {
+        await queryClient.invalidateQueries({ 
+          queryKey: ['workspace-projects', selectedWorkspace] 
+        });
+        console.log('Tasks generated, projects data refreshed');
+      }
+    } catch (error: any) {
+      console.error('AI Task generation error:', error);
+      
+      // More specific error messages
+      if (error.message.includes('permission')) {
+        toast.error('You do not have permission to create tasks in this project');
+      } else if (error.message.includes('temporarily unavailable') || error.message.includes('fallback')) {
+        toast.error('AI service is currently unavailable. Using fallback task generation...');
+        // The backend should handle fallback, so we can be optimistic
+        toast.success('Fallback tasks generated successfully!');
+        setPrompt('');
+        
+        // Refresh data for fallback tasks too
+        if (selectedWorkspace) {
+          await queryClient.invalidateQueries({ 
+            queryKey: ['workspace-projects', selectedWorkspace] 
+          });
+        }
+      } else {
+        toast.error(error.message || 'Failed to generate tasks. Please try again.');
+      }
     }
-  }
-};
+  };
 
   return (
     <div className="space-y-6">
@@ -205,7 +215,8 @@ const handleGenerateTasks = async () => {
           </div>
         </div>
       </div>
-   {/* AI Status Indicator */}
+
+      {/* AI Status Indicator */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <div className="flex items-center">
           <div className="flex-shrink-0">
