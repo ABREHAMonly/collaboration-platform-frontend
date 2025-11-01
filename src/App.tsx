@@ -16,7 +16,6 @@ import AIDashboard from './pages/AIDashboard';
 
 // Components
 import Layout from './components/Layout';
-import { DebugHelper } from './components/DebugHelper';
 
 // Hooks
 import { AuthProvider, useAuth } from './hooks/useAuth';
@@ -54,19 +53,13 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; admin?: boolean }> =
 
 // New component that uses useAuth after AuthProvider
 const AppContent: React.FC = () => {
-  const { user } = useAuth();
 
   return (
     <Router>
       <div className="App min-h-screen bg-gray-50">
         <Toaster position="top-right" />
         
-        {/* Debug Helper - Only show when user is authenticated */}
-        {user && (
-          <div className="container mx-auto px-4 py-2">
-            <DebugHelper />
-          </div>
-        )}
+        
         
         <Routes>
           <Route path="/login" element={<Login />} />
